@@ -5,14 +5,39 @@
 #include "kernel/fcntl.h"
 #include "kernel/param.h"
 
+static int use_exec = 0;
+static char *argv_exec[MAXARG] = {0};
+static int count = 0;
+
 void fmt_pathname(char *buf, char *path, char *name);
 void find(char *path, char *file);
+void cmd(char *buf);
 
 int main(int argc, char *argv[]) {
 
     if (argc < 3) {
         fprintf(2, "Usage: find [directory] [file]\n");
         exit(1);
+    }
+
+    // 处理 -exec 选项
+    if (argc > 3) {
+        if (strcmp(argv[3], "-exec") != 0) {
+            fprintf(2, "Usage: find [directory] [file] -exec [arguments...]\n");
+            exit(1);
+        }
+
+        use_exec = 1;
+        count = argc - 4;
+
+        if (count == 0) {
+            fprintf(2, "Usage: find [directory] [file] -exec [arguments...]\n");
+            exit(1);
+        }
+
+        for (int i = 0; i < count; ++i) {
+            argv_exec[i] = argv[i + 4];
+        }
     }
 
     find(argv[1], argv[2]);
@@ -63,7 +88,12 @@ void find(char *path, char *file) {
             case T_DEVICE:
             case T_FILE:
                 if (strcmp(de.name, file) == 0) { // 如果是普通文件并且是待查找的文件名
-                	printf("%s\n", buf);
+                	if (use_exec == 0) {
+                        printf("%s\n", buf);
+                    }
+                    else {
+                        cmd(buf);
+                    }
                 }
                 break;
             case T_DIR:
@@ -81,4 +111,33 @@ void fmt_pathname(char *buf, char *path, char *name) { // 辅助函数，负责�
     char *p = buf + strlen(buf);
     *p++ = '/';
     strcpy(p, name);
+}
+
+void cmd(char *buf) {
+    int pid = fork();
+
+    if (pid < 0) {
+        fprintf(2, "find: fork %s failed\n", buf);
+    }
+
+    if (pid == 0) { // 子进程
+        char *new_argv[MAXARG] = {0};
+
+        int i = 0;
+        for (i = 0; i < count; ++i) {
+            new_argv[i] = argv_exec[i];
+        }
+
+        new_argv[i++] = buf;
+        new_argv[i] = 0;
+        exec(new_argv[0], new_argv); // exec调用
+        
+        fprintf(2, "find: exec %s failed\n", new_argv[0]);
+        exit(1);
+    }
+    
+    else { // 父进程
+        int status;
+        wait(&status); // 等待子进程终止
+    }
 }
