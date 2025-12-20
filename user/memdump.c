@@ -38,7 +38,9 @@ main(int argc, char *argv[])
     
     printf("Example 5:\n");
     memdump("sccccc", (char*) &example);
-  } else if(argc == 2){
+  }
+  
+  else if(argc == 2){
     // format in argv[1], up to 512 bytes of data from standard input.
     char data[512];
     int n = 0;
@@ -50,10 +52,13 @@ main(int argc, char *argv[])
       n += nn;
     }
     memdump(argv[1], data);
-  } else {
+  }
+  
+  else {
     printf("Usage: memdump [format]\n");
     exit(1);
   }
+
   exit(0);
 }
 
@@ -61,5 +66,38 @@ void
 memdump(char *fmt, char *data)
 {
   // Your code here.
+  while (*fmt != '\0') {
+    char ch = *fmt;
 
+    switch (ch) {
+      case 'i':
+        printf("%d\n", *((int *)data));
+        data += 4;
+        break;
+      case 'p':
+        printf("%llx\n", *((long long *)data));
+        data += 8;
+        break;
+      case 'h':
+        printf("%d\n", *((short *)data));
+        data += 2;
+        break;
+      case 'c':
+        printf("%c\n", *data);
+        data += 1;
+        break;
+      case 's':
+        printf("%s\n", *((char **)data));
+        data += 8;
+        break;
+      case 'S':
+        printf("%s\n", data);
+        data = 0;
+        break;
+      default:
+        break;
+    }
+
+    fmt += 1;
+  }
 }
