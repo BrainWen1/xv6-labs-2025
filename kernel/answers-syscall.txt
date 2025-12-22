@@ -1,0 +1,33 @@
+# 通过 GDB 调试理解 xv6 的系统调用流程、进程结构、内核崩溃机制
+
+1. Looking at the backtrace output, which function called syscall? 查看调用栈的输出，是哪个函数调用了syscall？
+
+	trap函数。xv6 中用户态触发系统调用会进入内核的trap陷阱处理逻辑，由trap调用syscall分发系统调用。
+
+2. What is the value of p->trapframe->a7 and what does that value represent? 
+p->trapframe->a7的值是什么？这个值代表什么？（提示：查看user/init.c——xv6 启动的第一个用户程序，以及它编译后的汇编文件user/init.asm）
+
+	p->trapframe->a7的值是系统调用号（比如 xv6 第一个用户进程init执行的exec系统调用，对应SYS_exec，编号通常是5）；
+	a7是 RISC-V 架构中用来传递 “系统调用号” 的寄存器，内核通过它判断要执行哪个系统调用。
+
+3. What was the previous mode that the CPU was in?
+CPU 之前处于什么模式？
+
+	用户模式。系统调用是从用户态程序触发的，进入内核后 CPU 切换为特权模式，因此之前处于用户模式。
+
+4. Write down the assembly instruction the kernel is panicking at. Which register corresponds to the variable num?
+写下内核崩溃时执行的汇编指令。变量num对应的是哪个寄存器？
+
+	崩溃的汇编指令是lw a5, 0(a0)（或类似 “从地址 0 加载数据” 的指令）；变量num对应的寄存器是a5（具体由编译决定，但核心是访问了地址0）。
+
+5. Why does the kernel crash? 内核为什么会崩溃？提示：查看教材中的图 3-3；地址 0 在内核地址空间中是已映射的吗？
+上面scause的值是否能验证这一点？（参考 RISC-V 特权指令中关于scause的描述）
+
+	内核地址空间中地址 0 未被映射（xv6 内核内存从高地址开始，低地址 0 是无效的 “空洞”）；
+	scause=0xd表示 “加载页错误”，说明访问了未映射的内存地址，触发内核陷阱。
+
+6. What is the name of the process that was running when the kernel panicked? What is its process id (pid)?
+内核崩溃时正在运行的进程叫什么名字？它的进程 ID（pid）是多少？
+
+	进程名是init（xv6 启动的第一个用户进程），进程 ID（pid）是1。
+
