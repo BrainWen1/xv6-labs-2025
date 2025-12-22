@@ -135,15 +135,42 @@ syscall(void)
 {
   int num;
   struct proc *p = myproc();
+  char path[MAXPATH];
+  int path_len, sandbox_path_len; // 存储路径长度
 
   num = p->trapframe->a7;
 
   // check that the syscall number is been reject by sandbox
-  if((p->sandbox_mask & (1 << num)) != 0) {
-    printf("%d %s: rejected sys call %d\n",
-            p->pid, p->name, num);
-    p->trapframe->a0 = -1;
-    return;
+  if (num == SYS_open || num == SYS_exec) {
+    // 1. 读取路径
+    if (argstr(0, path, MAXPATH) < 0) {
+      p->trapframe->a0 = -1;
+      return;
+    }
+    path_len = strlen(path); // 获取当前路径的长度
+    sandbox_path_len = strlen(p->sandbox_path); // 获取允许路径的长度
+
+    // 2. 被mask时的严格校验：
+    if (p->sandbox_mask & (1 << num)) {
+      // 校验sandbox_path是否完全是"-"（长度1 + 内容匹配）
+      if (sandbox_path_len == 1 && strncmp(p->sandbox_path, "-", 1) == 0) {
+        p->trapframe->a0 = -1;
+        return;
+      }
+      // 校验路径完全匹配：长度相等 + 内容匹配
+      if (path_len != sandbox_path_len || 
+          strncmp(path, p->sandbox_path, sandbox_path_len) != 0) {
+        p->trapframe->a0 = -1;
+        return;
+      }
+    }
+  } 
+  // 其他系统调用：按mask拒绝
+  else {
+    if (p->sandbox_mask & (1 << num)) {
+      p->trapframe->a0 = -1;
+      return;
+    }
   }
 
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
