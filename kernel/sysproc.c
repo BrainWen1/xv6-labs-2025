@@ -105,3 +105,36 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_interpose(void)
+{
+  // 1. 定义变量，用来接收用户态传过来的参数
+  int mask;                // 接收第一个参数：沙箱掩码
+  char path_buf[MAXPATH];  // 接收第二个参数：路径（内核临时缓冲区）
+  struct proc *p;          // 指向当前进程的结构体
+
+  // 2. 获取当前进程的结构体（myproc()是xv6提供的函数，返回当前运行的进程）
+  p = myproc();
+  if(p == 0) {  // 极端情况：当前无进程，直接返回错误
+    return -1;
+  }
+
+  // 3. 读取第一个参数（mask，存在a0寄存器，对应第0个参数）
+  // argint(参数序号, 保存到的变量地址)：
+  argint(0, &mask);
+
+  // 4. 读取第二个参数（path，存在a1寄存器，对应第1个参数）
+  // argstr(参数序号, 内核缓冲区, 缓冲区长度)：安全复制用户态字符串到内核
+  if(argstr(1, path_buf, MAXPATH) < 0) {
+    return -1;  // 读取失败，返回-1
+  }
+
+  // 5. 把读取到的参数存到当前进程的结构体里（核心！）
+  p->sandbox_mask = mask;  // 存掩码
+  // safestrcpy：xv6提供的安全字符串复制函数，避免越界
+  safestrcpy(p->sandbox_path, path_buf, MAXPATH);
+
+  // 6. 成功执行，返回0（用户态会收到0，表示成功）
+  return 0;
+}

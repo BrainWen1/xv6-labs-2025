@@ -276,6 +276,10 @@ kfork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // copy parent's sandbox mask and path
+  np->sandbox_mask = p->sandbox_mask;
+  safestrcpy(np->sandbox_path, p->sandbox_path, MAXPATH);
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 

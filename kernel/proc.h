@@ -104,4 +104,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int sandbox_mask;            // 沙箱掩码：标记沙箱中的用户进程被拒绝的系统调用
+  char sandbox_path[MAXPATH];  // 存路径
 };
