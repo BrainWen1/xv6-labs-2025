@@ -132,6 +132,19 @@ found:
     return 0;
   }
 
+  // 分配 USYSCALL 物理页
+  struct usyscall *usys = (struct usyscall *)kalloc();
+  if (usys == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  // 初始化 USYSCALL 物理页内容
+  usys->pid = p->pid;
+  // 将物理页地址存储到进程结构体中
+  p->usys = usys;
+
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -158,6 +171,12 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+
+  // 释放 USYSCALL 物理页
+  if (p->usys)
+    kfree((void*)p->usys);
+  p->usys = 0;
+
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -202,6 +221,15 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // 映射 USYSCALL 虚拟地址
+  if (mappages(pagetable, USYSCALL, PGSIZE,
+              (uint64)(p->usys), PTE_R | PTE_U) < 0) {
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
   return pagetable;
 }
 
@@ -212,6 +240,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmunmap(pagetable, USYSCALL, 1, 0); // 接触映射 USYSCALL 虚拟地址
   uvmfree(pagetable, sz);
 }
 
