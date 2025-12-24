@@ -1,3 +1,5 @@
+任务1：Inspect a user-process page table (easy)
+
 $ pgtbltest
 print_pgtbl starting
 va 0x0 pte 0x21FC885B pa 0x87F22000 perm 0x5B
@@ -47,3 +49,11 @@ perm 0x5B：   （二进制01011011）PTE_V=1（有效）、PTE_R=1（可读）�
 
 这类页表项的perm≠0但不含PTE_U（PTE_U=0），对应内核专属的虚拟地址区域（用户进程无权限访问）。
 
+
+任务二：Speed up system calls (easy)
+
+适合用共享页加速的系统调用，都是返回 “静态 / 少修改的进程 / 全局数据” 的调用，典型的有：
+    实验里的 getpid；
+    全局状态类：uptime；
+    进程静态属性类：getppid、getuid、getgid。
+这些调用都能让用户态直接读共享页的数据，彻底省去内核陷入的开销。
