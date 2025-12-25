@@ -192,6 +192,8 @@ void            vmprint(pagetable_t);
 pte_t*          pgpte(pagetable_t, uint64);
 #endif
 
+void vmprint(pagetable_t pagetable);
+
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

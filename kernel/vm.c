@@ -143,8 +143,51 @@ walkaddr(pagetable_t pagetable, uint64 va)
 
 #if defined(LAB_PGTBL) || defined(SOL_MMAP) || defined(SOL_COW)
 void
+_vmprint(pagetable_t pagetable, int level, uint64 va)
+{
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i]; // 拿到页表
+    
+    if ((pte & PTE_V) == 0) // 跳过无效页表
+      continue;
+
+    // 前缀字符串
+    char *prefix[] = {
+      "..",
+      "....",
+      "......"
+    };
+
+    // 获取页虚拟地址
+    uint64 cur_va;
+    if (level == 0) {
+      // 顶级页表：VPN2占虚拟地址高9位 → 左移30位（9+9+12）
+      cur_va = va + ((uint64)i << 30);
+    } else if (level == 1) {
+      // 中级页表：VPN1占中间9位 → 左移21位（9+12）
+      cur_va = va + ((uint64)i << 21);
+    } else {
+      // 底层页表：VPN0占低9位 → 左移12位（页内偏移）
+      cur_va = va + ((uint64)i << 12);
+    }
+
+    // 打印信息
+    printf("%s%p: pte %p pa %p\n", prefix[level], (void *)cur_va, (void *)pte, (void *)PTE2PA(pte));
+
+    // 递归查找页表
+    if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+      pagetable_t child = (pagetable_t)PTE2PA(pte);
+      _vmprint(child, level + 1, cur_va);
+    } 
+  }
+}
+
+void
 vmprint(pagetable_t pagetable) {
   // your code here
+  printf("page table %p\n", (void *)pagetable);
+  _vmprint(pagetable, 0, 0);
 }
 #endif
 
